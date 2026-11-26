@@ -44,6 +44,43 @@ function formatDateLabel(yyyymmdd: string) {
   return `${m}/${d}(${days[dateObj.getDay()]})`;
 }
 
+// 추천 근거 텍스트를 가독성 높은 컬러 태그 칩으로 렌더링
+function ReasonChips({ reason }: { reason: string }) {
+  const parts = String(reason || '')
+    .split('·')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  return (
+    <div className="flex flex-wrap gap-1 mt-1.5">
+      {parts.map((tag, i) => {
+        let style = 'bg-slate-800/90 text-slate-300 border-slate-700/70';
+        if (tag.includes('1위 우승')) {
+          style = 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold';
+        } else if (tag.includes('입상') && !tag.startsWith('입상률')) {
+          style = 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+        } else if (tag.includes('스피드')) {
+          style = 'bg-sky-500/15 text-sky-300 border-sky-500/30';
+        } else if (tag.includes('적성')) {
+          style = 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30';
+        } else if (tag.includes('감량')) {
+          style = 'bg-teal-500/15 text-teal-300 border-teal-500/30';
+        } else if (tag.includes('기수 승률')) {
+          style = 'bg-purple-500/15 text-purple-300 border-purple-500/30';
+        }
+        return (
+          <span
+            key={i}
+            className={`px-1.5 py-0.5 rounded text-[10px] border leading-tight ${style}`}
+          >
+            {tag}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'UPCOMING' | 'RESULTS'>('UPCOMING');
   const [rows, setRows] = useState<UpcomingRaceRow[]>([]);
@@ -69,6 +106,7 @@ export default function Home() {
         supabase
           .from('prediction_logs')
           .select('*')
+          .not('actual_rank', 'is', null) // 실제 경주 결과가 확정된 데이터만 검증표에 로드
           .order('race_date', { ascending: false })
           .order('meet', { ascending: true })
           .order('race_no', { ascending: true })
@@ -99,7 +137,6 @@ export default function Home() {
     const winHits = top1.filter((l) => l.is_win_hit).length;
     const placeHits = top1.filter((l) => l.is_place_hit).length;
 
-    // 경주별 TOP 3 추천마 중 1등마 포함 여부
     const raceMap = new Map<string, PredictionLogRow[]>();
     for (const l of logs) {
       const k = `${l.race_date}-${l.meet}-${l.race_no}`;
@@ -232,7 +269,7 @@ export default function Home() {
               </h1>
             </div>
             <p className="text-xs text-slate-400 mt-1">
-              한국마사회 10,862건 실전 기록 & 통산 전적 기반 AI 스코어링
+              한국마사회 24,304건 연간 실전 기록 & 통산 전적 기반 AI 스코어링
             </p>
           </div>
 
@@ -256,7 +293,7 @@ export default function Home() {
                   : 'text-slate-300 hover:text-white'
               }`}
             >
-              실전 적중 검증표
+              실전 적중 검증표 ({kpiStats.totalRaces}경주)
             </button>
           </div>
         </div>
@@ -396,6 +433,11 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {groupedRaces.map((race) => {
                 const top1 = race.horses[0];
+                const top2 = race.horses[1];
+                const scoreGap = top1 && top2 ? top1.ai_score - top2.ai_score : 0;
+                const isStrongPick = scoreGap >= 12;
+                const isCloseRace = top1 && top2 && scoreGap <= 4.5;
+
                 const isExpanded = !!expandedRaces[race.key];
                 const visibleHorses = isExpanded ? race.horses : race.horses.slice(0, 3);
 
@@ -405,8 +447,8 @@ export default function Home() {
                     className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col justify-between shadow-lg"
                   >
                     <div>
-                      <div className="px-4 py-3 bg-slate-800/70 border-b border-slate-800 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                      <div className="px-4 py-3 bg-slate-800/70 border-b border-slate-800 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span
                             className={`px-2 py-0.5 text-xs font-bold rounded ${
                               race.meet === '서울'
@@ -425,14 +467,28 @@ export default function Home() {
                             · {formatDateLabel(race.race_date)} · {race.distance}m
                           </span>
                         </div>
-                        <span className="text-xs text-slate-400">{race.horses.length}두 출전</span>
+
+                        {/* 경주별 공략 전략 배지 */}
+                        {isStrongPick ? (
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0">
+                            ★ 단승 강력추천
+                          </span>
+                        ) : isCloseRace ? (
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-500/15 text-sky-300 border border-sky-500/30 shrink-0">
+                            접전 · 삼복승 권장
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400 shrink-0">
+                            {race.horses.length}두 출전
+                          </span>
+                        )}
                       </div>
 
                       {top1 && (
                         <div className="m-3 p-3.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent border border-amber-500/40">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
-                              <span className="w-7 h-7 rounded-lg bg-amber-500 text-slate-950 font-black text-sm flex items-center justify-center shadow">
+                              <span className="w-7 h-7 rounded-lg bg-amber-500 text-slate-950 font-black text-sm flex items-center justify-center shadow shrink-0">
                                 {top1.gate_no}
                               </span>
                               <div>
@@ -449,16 +505,14 @@ export default function Home() {
                                 </p>
                               </div>
                             </div>
-                            <div className="text-right">
+                            <div className="text-right shrink-0">
                               <div className="text-xs text-amber-300/80">AI 점수</div>
                               <div className="text-xl font-black text-amber-400">
                                 {top1.ai_score.toFixed(1)}
                               </div>
                             </div>
                           </div>
-                          <p className="mt-2 text-xs text-amber-200/90 bg-slate-950/50 px-2.5 py-1.5 rounded-lg">
-                            {top1.reason}
-                          </p>
+                          <ReasonChips reason={top1.reason} />
                         </div>
                       )}
 
@@ -466,15 +520,15 @@ export default function Home() {
                         {visibleHorses.map((h, idx) => (
                           <div
                             key={h.id}
-                            className={`px-3 py-2 rounded-xl flex items-center justify-between text-xs ${
+                            className={`px-3 py-2.5 rounded-xl flex items-start justify-between text-xs ${
                               idx === 0
                                 ? 'bg-slate-800/40 border border-slate-700/60'
                                 : 'bg-slate-950/60 border border-slate-800/60'
                             }`}
                           >
-                            <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="flex items-start gap-2.5 min-w-0">
                               <span
-                                className={`w-5 h-5 rounded font-bold flex items-center justify-center shrink-0 ${
+                                className={`w-5 h-5 mt-0.5 rounded font-bold flex items-center justify-center shrink-0 ${
                                   idx === 0
                                     ? 'bg-amber-500 text-slate-950'
                                     : idx === 1
@@ -486,15 +540,15 @@ export default function Home() {
                               >
                                 {idx + 1}
                               </span>
-                              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 font-bold shrink-0">
-                                {h.gate_no}번
-                              </span>
-                              <div className="truncate">
-                                <span className="font-bold text-slate-100">{h.horse_name}</span>
-                                <span className="text-slate-400 ml-1.5">({h.jockey_name})</span>
-                                <div className="text-[11px] text-slate-400 truncate mt-0.5">
-                                  {h.reason}
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 font-bold">
+                                    {h.gate_no}번
+                                  </span>
+                                  <span className="font-bold text-slate-100">{h.horse_name}</span>
+                                  <span className="text-slate-400">({h.jockey_name})</span>
                                 </div>
+                                <ReasonChips reason={h.reason} />
                               </div>
                             </div>
                             <div className="font-extrabold text-sm text-slate-200 ml-2 shrink-0">
@@ -521,7 +575,7 @@ export default function Home() {
             </div>
           )
         ) : (
-          /* 탭 2: 실전 적중 검증표 */
+          /* 탭 2: 실전 적중 검증표 (확정된 경주만 노출) */
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {groupedLogs.map((race) => {
               const top1Pick = race.picks.find((p) => p.predicted_rank === 1);
@@ -561,7 +615,7 @@ export default function Home() {
                     {race.picks.map((p) => (
                       <div
                         key={p.id}
-                        className={`px-3 py-2.5 rounded-xl flex items-center justify-between text-xs border ${
+                        className={`px-3 py-2.5 rounded-xl flex items-start justify-between text-xs border ${
                           p.actual_rank === 1
                             ? 'bg-amber-500/10 border-amber-500/40'
                             : p.actual_rank !== null && p.actual_rank <= 3
@@ -569,15 +623,17 @@ export default function Home() {
                             : 'bg-slate-950/60 border-slate-800'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-bold shrink-0">
+                        <div className="flex items-start gap-2.5 min-w-0">
+                          <span className="px-2 py-0.5 mt-0.5 rounded bg-slate-800 text-slate-300 font-bold shrink-0">
                             AI {p.predicted_rank}위
                           </span>
-                          <span className="font-bold text-slate-200 shrink-0">{p.gate_no}번</span>
-                          <div className="truncate">
-                            <span className="font-extrabold text-white">{p.horse_name}</span>
-                            <span className="text-slate-400 ml-1">({p.jockey_name})</span>
-                            <div className="text-[11px] text-slate-400 truncate">{p.reason}</div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-slate-200">{p.gate_no}번</span>
+                              <span className="font-extrabold text-white">{p.horse_name}</span>
+                              <span className="text-slate-400">({p.jockey_name})</span>
+                            </div>
+                            <ReasonChips reason={p.reason} />
                           </div>
                         </div>
 
@@ -591,7 +647,7 @@ export default function Home() {
                                 : 'text-slate-400'
                             }`}
                           >
-                            {p.actual_rank ? `실제 ${p.actual_rank}착` : '기록없음'}
+                            {p.actual_rank ? `실제 ${p.actual_rank}착` : '경기 전'}
                           </div>
                           <div className="text-[10px] text-slate-500">
                             예측 {p.ai_score.toFixed(1)}점
@@ -605,6 +661,16 @@ export default function Home() {
             })}
           </div>
         )}
+
+        {/* 하단 안내 푸터 */}
+        <footer className="pt-6 border-t border-slate-800/70 text-center text-[11px] text-slate-500 space-y-1">
+          <p>
+            본 서비스는 한국마사회 공공데이터의 과거 경주 기록 및 출전표 통계를 기반으로 산출된 AI 참고용 분석 정보입니다.
+          </p>
+          <p>
+            실제 경주 결과는 당일 주로 상태, 마필 컨디션 및 전개에 따라 달라질 수 있으며 모든 선택의 책임은 이용자 본인에게 있습니다.
+          </p>
+        </footer>
       </div>
     </main>
   );
