@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -44,7 +44,6 @@ function formatDateLabel(yyyymmdd: string) {
   return `${m}/${d}(${days[dateObj.getDay()]})`;
 }
 
-// 추천 근거 텍스트를 가독성 높은 컬러 태그 칩으로 렌더링
 function ReasonChips({ reason }: { reason: string }) {
   const parts = String(reason || '')
     .split('·')
@@ -92,6 +91,11 @@ export default function Home() {
   const [selectedLogDate, setSelectedLogDate] = useState<string>('ALL');
   const [expandedRaces, setExpandedRaces] = useState<Record<string, boolean>>({});
 
+  const [fbCategory, setFbCategory] = useState('기능 제안');
+  const [fbMessage, setFbMessage] = useState('');
+  const [fbContact, setFbContact] = useState('');
+  const [fbStatus, setFbStatus] = useState<'IDLE' | 'SENDING' | 'SENT' | 'ERROR'>('IDLE');
+
   useEffect(() => {
     async function loadData() {
       setLoading(true);
@@ -130,7 +134,6 @@ export default function Home() {
     loadData();
   }, []);
 
-  // 적중률 KPI 집계
   const kpiStats = useMemo(() => {
     const top1 = logs.filter((l) => l.predicted_rank === 1 && l.actual_rank !== null);
     const totalRaces = top1.length;
@@ -170,7 +173,6 @@ export default function Home() {
 
   const meets = ['ALL', '서울', '부산경남', '제주'];
 
-  // 예정 경주 그룹화
   const groupedRaces = useMemo(() => {
     const filtered = rows.filter((r) => {
       if (selectedDate !== 'ALL' && r.race_date !== selectedDate) return false;
@@ -212,7 +214,6 @@ export default function Home() {
     return Array.from(map.values());
   }, [rows, selectedDate, selectedMeet]);
 
-  // 과거 검증 결과 그룹화
   const groupedLogs = useMemo(() => {
     const filtered = logs.filter((r) => {
       if (selectedLogDate !== 'ALL' && r.race_date !== selectedLogDate) return false;
@@ -254,9 +255,31 @@ export default function Home() {
     setExpandedRaces((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const handleSendFeedback = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fbMessage.trim()) return;
+    setFbStatus('SENDING');
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: fbCategory,
+          message: fbMessage,
+          contact: fbContact,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      setFbStatus('SENT');
+      setFbMessage('');
+      setFbContact('');
+    } catch {
+      setFbStatus('ERROR');
+    }
+  };
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 pb-16">
-      {/* 상단 헤더 */}
       <header className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur border-b border-slate-800">
         <div className="max-w-5xl mx-auto px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -273,7 +296,6 @@ export default function Home() {
             </p>
           </div>
 
-          {/* 메인 모드 전환 탭 */}
           <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700 self-start sm:self-auto">
             <button
               onClick={() => setActiveTab('UPCOMING')}
@@ -300,7 +322,6 @@ export default function Home() {
       </header>
 
       <div className="max-w-5xl mx-auto px-4 mt-5 space-y-5">
-        {/* 상단 실시간 적중 성적표 KPI 배너 */}
         {kpiStats.totalRaces > 0 && (
           <div className="space-y-2">
             <section className="grid grid-cols-3 gap-3">
@@ -346,7 +367,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* 필터 바 */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
           {activeTab === 'UPCOMING' ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -404,7 +424,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* 경마장 선택 */}
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/80">
             <span className="text-xs font-semibold text-slate-400 mr-1">경마장</span>
             {meets.map((m) => (
@@ -423,13 +442,11 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 본문 리스트 */}
         {loading ? (
           <div className="text-center py-20 text-slate-400">
             경마 데이터와 AI 분석 결과를 불러오는 중입니다...
           </div>
         ) : activeTab === 'UPCOMING' ? (
-          /* 탭 1: 이번 주 1등 예측 */
           groupedRaces.length === 0 ? (
             <div className="text-center py-20 bg-slate-900 rounded-2xl border border-slate-800 text-slate-400">
               선택한 조건에 해당하는 예정 경주가 없습니다.
@@ -473,7 +490,6 @@ export default function Home() {
                           </span>
                         </div>
 
-                        {/* 경주별 공략 전략 배지 */}
                         {isStrongPick ? (
                           <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0">
                             ★ 단승 강력추천
@@ -580,7 +596,6 @@ export default function Home() {
             </div>
           )
         ) : (
-          /* 탭 2: 실전 적중 검증표 (확정된 경주만 노출) */
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {groupedLogs.map((race) => {
               const top1Pick = race.picks.find((p) => p.predicted_rank === 1);
@@ -667,7 +682,122 @@ export default function Home() {
           </div>
         )}
 
-        {/* 하단 안내 푸터 */}
+        <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5">
+          <div className="mb-3">
+            <h2 className="text-sm font-extrabold text-white">
+              💬 개발자에게 의견 · 오류 제보 보내기
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              불편한 점이나 추가되었으면 하는 지표를 남겨주시면 개발자 텔레그램으로 즉시 전달됩니다.
+            </p>
+          </div>
+
+          <form onSubmit={handleSendFeedback} className="space-y-2.5">
+            <div className="flex flex-wrap gap-2">
+              {['기능 제안', '오류 제보', '적중 후기', '기타'].map((cat) => (
+                <button
+                  type="button"
+                  key={cat}
+                  onClick={() => setFbCategory(cat)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                    fbCategory === cat
+                      ? 'bg-sky-500 text-slate-950'
+                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            <textarea
+              rows={2}
+              value={fbMessage}
+              onChange={(e) => {
+                setFbMessage(e.target.value);
+                if (fbStatus !== 'IDLE') setFbStatus('IDLE');
+              }}
+              placeholder="예: 복병마 추천 기능도 추가해 주세요 / 모바일에서 글씨가 조금 작아요"
+              className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
+            />
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={fbContact}
+                onChange={(e) => setFbContact(e.target.value)}
+                placeholder="(선택) 답변받을 이메일 또는 연락처"
+                className="flex-1 rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
+              />
+              <button
+                type="submit"
+                disabled={fbStatus === 'SENDING' || !fbMessage.trim()}
+                className="px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 font-extrabold text-xs transition shrink-0"
+              >
+                {fbStatus === 'SENDING' ? '전송 중...' : '개발자에게 바로 전송'}
+              </button>
+            </div>
+
+            {fbStatus === 'SENT' && (
+              <p className="text-xs font-bold text-emerald-400">
+                ✓ 개발자에게 소중한 의견이 즉시 전달되었습니다. 감사합니다!
+              </p>
+            )}
+            {fbStatus === 'ERROR' && (
+              <p className="text-xs font-bold text-rose-400">
+                전송에 실패했습니다. 잠시 후 다시 시도해 주세요.
+              </p>
+            )}
+          </form>
+        </section>
+
+        <section className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3">
+          <div>
+            <h2 className="text-sm font-extrabold text-white">
+              ☕ MY-KEIBA 개발자 응원하기
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              무료 AI 경마 분석 서버 유지와 데이터 엔진 고도화에 큰 힘이 됩니다.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <a
+              href="https://link.coupang.com/a/iVFBkwn06S"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-3 rounded-xl bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800 flex items-center justify-between transition"
+            >
+              <div>
+                <span className="text-[10px] font-bold text-sky-400">개발자 에너지 충전</span>
+                <div className="text-xs font-bold text-slate-100 mt-0.5">
+                  제주삼다수 그린 무라벨 생수
+                </div>
+              </div>
+              <span className="text-xs text-slate-400">보러가기 →</span>
+            </a>
+
+            <a
+              href="https://link.coupang.com/a/iVFNf2jg5Y"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-3 rounded-xl bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800 flex items-center justify-between transition"
+            >
+              <div>
+                <span className="text-[10px] font-bold text-rose-400">야간 데이터 분석 간식</span>
+                <div className="text-xs font-bold text-slate-100 mt-0.5">
+                  삼양 불닭볶음면 멀티팩
+                </div>
+              </div>
+              <span className="text-xs text-slate-400">보러가기 →</span>
+            </a>
+          </div>
+
+          <p className="text-[10px] text-slate-500">
+            이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.
+          </p>
+        </section>
+
         <footer className="pt-6 border-t border-slate-800/70 text-center text-[11px] text-slate-500 space-y-1">
           <p>
             본 서비스는 한국마사회 공공데이터의 과거 경주 기록 및 출전표 통계를 기반으로 산출된 AI 참고용 분석 정보입니다.

@@ -1,7 +1,7 @@
-import type { MetadataRoute } from 'next';
+﻿import type { MetadataRoute } from 'next';
 
 export default function robots(): MetadataRoute.Robots {
-  const siteUrl = 'https://my-keiba-beta.vercel.app/'; 
+  const siteUrl = 'https://my-keiba-beta.vercel.app';
   return {
     rules: {
       userAgent: '*',
