@@ -106,7 +106,7 @@ export default function Home() {
         supabase
           .from('prediction_logs')
           .select('*')
-          .not('actual_rank', 'is', null) // 실제 경주 결과가 확정된 데이터만 검증표에 로드
+          .not('actual_rank', 'is', null)
           .order('race_date', { ascending: false })
           .order('meet', { ascending: true })
           .order('race_no', { ascending: true })
@@ -302,43 +302,48 @@ export default function Home() {
       <div className="max-w-5xl mx-auto px-4 mt-5 space-y-5">
         {/* 상단 실시간 적중 성적표 KPI 배너 */}
         {kpiStats.totalRaces > 0 && (
-          <section className="grid grid-cols-3 gap-3">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
-              <div className="text-[11px] text-slate-400 font-medium">
-                AI 1순위 단승(1착) 적중률
+          <div className="space-y-2">
+            <section className="grid grid-cols-3 gap-3">
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
+                <div className="text-[11px] text-slate-400 font-medium">
+                  AI 1순위 단승(1착) 적중률
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-amber-400 mt-1">
+                  {kpiStats.winRate}%
+                </div>
+                <div className="text-[11px] text-slate-500 mt-0.5">
+                  {kpiStats.totalRaces}경주 중 {kpiStats.winHits}회 1위 적중
+                </div>
               </div>
-              <div className="text-xl sm:text-2xl font-black text-amber-400 mt-1">
-                {kpiStats.winRate}%
-              </div>
-              <div className="text-[11px] text-slate-500 mt-0.5">
-                {kpiStats.totalRaces}경주 중 {kpiStats.winHits}회 1위 적중
-              </div>
-            </div>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
-              <div className="text-[11px] text-slate-400 font-medium">
-                AI 1순위 연승(3위 내) 입상률
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
+                <div className="text-[11px] text-slate-400 font-medium">
+                  AI 1순위 연승(3위 내) 입상률
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-emerald-400 mt-1">
+                  {kpiStats.placeRate}%
+                </div>
+                <div className="text-[11px] text-slate-500 mt-0.5">
+                  {kpiStats.totalRaces}경주 중 {kpiStats.placeHits}회 입상
+                </div>
               </div>
-              <div className="text-xl sm:text-2xl font-black text-emerald-400 mt-1">
-                {kpiStats.placeRate}%
-              </div>
-              <div className="text-[11px] text-slate-500 mt-0.5">
-                {kpiStats.totalRaces}경주 중 {kpiStats.placeHits}회 입상
-              </div>
-            </div>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
-              <div className="text-[11px] text-slate-400 font-medium">
-                TOP 3 추천마 내 우승 포함률
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
+                <div className="text-[11px] text-slate-400 font-medium">
+                  TOP 3 추천마 내 우승 포함률
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-sky-400 mt-1">
+                  {kpiStats.top3WinRate}%
+                </div>
+                <div className="text-[11px] text-slate-500 mt-0.5">
+                  추천 3두 이내 1착 배출 비율
+                </div>
               </div>
-              <div className="text-xl sm:text-2xl font-black text-sky-400 mt-1">
-                {kpiStats.top3WinRate}%
-              </div>
-              <div className="text-[11px] text-slate-500 mt-0.5">
-                추천 3두 이내 1착 배출 비율
-              </div>
-            </div>
-          </section>
+            </section>
+            <p className="text-[11px] text-slate-400 text-right px-1">
+              ※ 과거 134경주는 AI 알고리즘 백테스트(시뮬레이션) 검증 결과이며, 11/27(금)부터는 실제 사전 예측 기록이 누적됩니다.
+            </p>
+          </div>
         )}
 
         {/* 필터 바 */}
